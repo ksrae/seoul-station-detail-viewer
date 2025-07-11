@@ -1,0 +1,1122 @@
+// 1. 기본 설정 및 변수
+$primary-color: #2196F3;
+$primary-dark: #1976D2;
+$primary-darker: #0D47A1;
+$secondary-color: #FF5722;
+$secondary-dark: #E64A19;
+$success-color: #4CAF50;
+$warning-color: #FFD700;
+$text-primary: #333;
+$text-secondary: #666;
+$text-hint: #999;
+$background-light: #f5f5f5;
+$shadow-light: 0 2px 10px rgba(0, 0, 0, 0.1);
+$shadow-medium: 0 4px 20px rgba(0, 0, 0, 0.15);
+$shadow-heavy: 0 10px 40px rgba(0, 0, 0, 0.3);
+$border-radius: 12px;
+$border-radius-sm: 8px;
+$border-radius-lg: 16px;
+$transition-fast: 0.2s ease;
+$transition-normal: 0.3s ease;
+
+// 2. 호스트 요소
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+
+  // zoom-controls가 잘리지 않도록
+  &::after {
+    content: '';
+    position: fixed;
+    bottom: 20px;
+    right: 10px;
+    width: 60px;
+    height: 160px;
+    pointer-events: none;
+    z-index: 2400;
+  }
+}
+
+// 3. 메인 컨테이너
+.map-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background-color: $background-light;
+
+  // overflow 제거하여 zoom-controls가 보이도록
+  overflow: visible;
+
+  // SVG 맵 컨테이너
+  .svg-container {
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+    overflow: hidden; // SVG만 overflow hidden 적용
+    position: relative;
+
+    &:active {
+      cursor: grabbing;
+    }
+  }
+}
+
+// 4. SVG 내부 텍스트 스타일링 - hover 효과 개선 (크기 변경 제거)
+::ng-deep svg {
+  text {
+    cursor: pointer;
+    pointer-events: auto;
+    transition: all $transition-fast;
+    user-select: none;
+
+    // 기본 hover 효과 (검색되지 않은 역) - 크기 변경 없이 색상만
+    &:hover:not(.station-search-highlight):not(.current-search-result) {
+      fill: $warning-color !important;
+      font-weight: bold;
+      filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.8));
+    }
+
+    // 검색 결과 하이라이트
+    &.station-search-highlight {
+      fill: $primary-color !important;
+      font-weight: bold;
+      filter: drop-shadow(0 0 8px rgba(33, 150, 243, 0.8));
+      opacity: 1 !important;
+      visibility: visible !important;
+      z-index: 20;
+      position: relative;
+
+      // 검색된 역의 hover 효과 - 크기 변경 없이
+      &:hover {
+        fill: $primary-dark !important;
+        filter: drop-shadow(0 0 12px rgba(33, 150, 243, 1));
+        cursor: pointer;
+      }
+    }
+
+    // 현재 검색 결과
+    &.current-search-result {
+      fill: $secondary-color !important;
+      font-weight: bold;
+      filter: drop-shadow(0 0 12px rgba(255, 87, 34, 1));
+      animation: pulse-color 1.5s ease-in-out infinite;
+      opacity: 1 !important;
+      visibility: visible !important;
+      z-index: 30;
+      position: relative;
+
+      // 현재 검색 결과의 hover 효과 - 크기 변경 없이
+      &:hover {
+        fill: $secondary-dark !important;
+        filter: drop-shadow(0 0 16px rgba(255, 87, 34, 1));
+        animation: none;
+      }
+    }
+
+    // station-highlight 클래스 (수동 hover)
+    &.station-highlight {
+      fill: $warning-color !important;
+      font-weight: bold;
+      filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.8));
+      opacity: 1 !important;
+      visibility: visible !important;
+      z-index: 10;
+      position: relative;
+
+      // 검색된 역이면서 hover된 경우
+      &.station-search-highlight {
+        fill: $primary-dark !important;
+        filter: drop-shadow(0 0 14px rgba(33, 150, 243, 1));
+      }
+
+      &.current-search-result {
+        fill: $secondary-dark !important;
+        filter: drop-shadow(0 0 18px rgba(255, 87, 34, 1));
+      }
+    }
+  }
+}
+
+// 이미지 캐러셀 스타일 추가
+.image-carousel {
+  position: relative;
+  width: 100%;
+}
+
+.image-line-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 12px;
+
+  .line-indicator {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 20px;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: $shadow-light;
+  }
+
+  .image-counter {
+    font-size: 14px;
+    color: $text-secondary;
+    font-weight: 500;
+  }
+}
+
+.carousel-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 200px;
+}
+
+.carousel-button {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-fast;
+  z-index: 2;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.8);
+    transform: translateY(-50%) scale(1.1);
+  }
+
+  &:active {
+    transform: translateY(-50%) scale(0.95);
+  }
+
+  &.carousel-prev {
+    left: 10px;
+  }
+
+  &.carousel-next {
+    right: 10px;
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.carousel-indicators {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.indicator-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  background: #ccc;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: #999;
+    transform: scale(1.2);
+  }
+
+  &.active {
+    width: 24px;
+    border-radius: 5px;
+  }
+}
+
+// 뷰어에서 호선 정보 표시
+.viewer-line-info {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+
+  .line-badge {
+    padding: 8px 20px;
+    border-radius: 20px;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    box-shadow: $shadow-medium;
+  }
+}
+
+// 뷰어 네비게이션 버튼
+.viewer-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  color: white;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.9);
+    transform: translateY(-50%) scale(1.1);
+  }
+
+  &.viewer-prev {
+    left: 30px;
+  }
+
+  &.viewer-next {
+    right: 30px;
+  }
+
+  svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+// 기존 station-image 스타일 수정
+.station-image {
+  max-width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  transition: all $transition-fast;
+  box-shadow: $shadow-light;
+
+  &:hover {
+    box-shadow: $shadow-medium;
+  }
+}
+
+
+// 5. 검색 UI
+.search-bar {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  border-radius: $border-radius;
+  box-shadow: $shadow-medium;
+  padding: 4px;
+  transition: all $transition-normal;
+  flex-wrap: wrap;
+  max-width: 500px;
+
+  &:focus-within {
+    box-shadow: 0 6px 30px rgba(0, 0, 0, 0.2);
+    transform: translateY(-1px);
+  }
+}
+
+.search-input {
+  border: none;
+  padding: 12px 16px;
+  font-size: 14px;
+  width: 250px;
+  outline: none;
+  background: transparent;
+  color: $text-primary;
+  font-family: inherit;
+
+  &::placeholder {
+    color: $text-hint;
+  }
+}
+
+.search-button {
+  background: $primary-color;
+  border: none;
+  padding: 10px 14px;
+  color: white;
+  cursor: pointer;
+  transition: all $transition-fast;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $border-radius-sm;
+  min-width: 44px;
+  height: 44px;
+
+  &:hover {
+    background: $primary-dark;
+    transform: scale(1.05);
+  }
+
+  &:active {
+    background: $primary-darker;
+    transform: scale(0.95);
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2.5;
+  }
+}
+
+// 검색 정보 래퍼
+.search-info-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0 8px;
+  margin-top: 4px;
+  border-top: 1px solid #e0e0e0;
+  padding-top: 8px;
+}
+
+// 검색어 표시
+.search-query-display {
+  font-size: 13px;
+  color: $text-secondary;
+  flex: 1;
+
+  // 검색어 강조
+  font-weight: 600;
+  color: $primary-color;
+}
+
+// 검색 결과 수 정보
+.search-result-info {
+  background: $background-light;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: $text-secondary;
+  white-space: nowrap;
+}
+
+// 검색 초기화 버튼
+.clear-search-button {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: $text-secondary;
+  transition: all $transition-fast;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+
+  &:hover {
+    background: $background-light;
+    color: $text-primary;
+    transform: scale(1.1);
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+// 6. 줌 컨트롤
+.zoom-controls {
+  position: fixed; // absolute에서 fixed로 변경
+  bottom: 30px;
+  right: 20px;
+  z-index: 2500; // z-index를 더 높게 설정
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  // 추가 스타일로 가시성 보장
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
+}
+
+.zoom-button {
+  width: 44px;
+  height: 44px;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.1); // 경계선 추가
+  border-radius: 50%;
+  box-shadow: $shadow-medium; // 그림자 강화
+  cursor: pointer;
+  color: $text-primary;
+  transition: all $transition-fast;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  // 가시성 보장
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+
+  svg {
+    width: 24px;
+    height: 24px;
+    color: $text-primary; // 색상 명시
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+  }
+
+  &:hover:not(:disabled) {
+    transform: scale(1.1);
+    box-shadow: $shadow-heavy;
+    background: $primary-color;
+    color: white;
+    border-color: $primary-color;
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f0f0f0;
+  }
+}
+
+// 7. 로딩 화면
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+
+.loading-content {
+  text-align: center;
+
+  .spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid $primary-color;
+    border-radius: 50%;
+    margin: 0 auto 20px;
+    animation: spin 1s linear infinite;
+  }
+
+  p {
+    font-size: 16px;
+    color: $text-secondary;
+    margin-bottom: 20px;
+  }
+
+  .progress-bar {
+    width: 200px;
+    height: 4px;
+    background: #e0e0e0;
+    border-radius: 2px;
+    overflow: hidden;
+
+    .progress-fill {
+      height: 100%;
+      background: $primary-color;
+      transition: width 0.3s ease;
+    }
+  }
+}
+
+// 8. 모달 (역 정보)
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn $transition-normal;
+  backdrop-filter: blur(5px);
+}
+
+.modal-content {
+  background: white;
+  border-radius: $border-radius-lg;
+  padding: 24px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: $shadow-heavy;
+  animation: slideUp $transition-normal;
+
+  h2 {
+    margin: 0 0 16px 0;
+    font-size: 24px;
+    color: $text-primary;
+    padding-right: 40px;
+  }
+}
+
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: $text-secondary;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: $background-light;
+    color: $text-primary;
+  }
+}
+
+// 환승역 정보
+.transfer-info {
+  margin-bottom: 16px;
+
+  .transfer-label {
+    display: inline-block;
+    background: #FFC107;
+    color: $text-primary;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .line-badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  .line-badge {
+    padding: 4px 12px;
+    border-radius: 16px;
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+  }
+}
+
+.station-description {
+  color: $text-secondary;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+// 역 이미지 섹션
+.station-image-section {
+  margin-top: 24px;
+
+  .station-image {
+    width: 100%;
+    max-height: 400px;
+    object-fit: cover;
+    border-radius: $border-radius-sm;
+    cursor: pointer;
+    transition: all $transition-fast;
+    box-shadow: $shadow-light;
+
+    &:hover {
+      transform: scale(1.02);
+      box-shadow: $shadow-medium;
+    }
+  }
+
+  .no-image-placeholder {
+    text-align: center;
+    padding: 60px 20px;
+    background: $background-light;
+    border-radius: $border-radius-sm;
+
+    svg {
+      color: #ccc;
+      margin-bottom: 12px;
+    }
+
+    p {
+      color: $text-secondary;
+      margin: 0;
+      font-size: 14px;
+    }
+  }
+
+  .image-loading {
+    text-align: center;
+    padding: 60px 20px;
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid $primary-color;
+      border-radius: 50%;
+      margin: 0 auto 16px;
+      animation: spin 1s linear infinite;
+    }
+
+    p {
+      color: $text-secondary;
+      margin: 0;
+      font-size: 14px;
+    }
+  }
+}
+
+// 9. 이미지 뷰어
+.image-viewer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  animation: fadeIn $transition-normal;
+  cursor: zoom-out;
+}
+
+.image-viewer-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.viewer-image {
+  max-width: 100%;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: $border-radius-sm;
+  box-shadow: $shadow-heavy;
+}
+
+.viewer-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid white;
+  color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: white;
+    color: $text-primary;
+    transform: scale(1.1);
+  }
+}
+
+// 10. 에러 메시지
+.error-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 32px;
+  border-radius: $border-radius;
+  box-shadow: $shadow-medium;
+  text-align: center;
+  color: #f44336;
+  font-size: 16px;
+}
+
+// 11. 디버그 컨트롤
+.debug-controls {
+  position: absolute;
+  top: 80px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 10px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-family: monospace;
+  font-size: 14px;
+  pointer-events: none;
+
+  span {
+    display: block;
+    white-space: nowrap;
+  }
+}
+
+
+// 12. 애니메이션 정의
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+// 12. 애니메이션 정의 수정
+@keyframes pulse-color {
+  0%, 100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 12px rgba(255, 87, 34, 1));
+  }
+  50% {
+    opacity: 0.7;
+    filter: drop-shadow(0 0 20px rgba(255, 87, 34, 0.8));
+  }
+}
+
+// 기존 pulse 애니메이션 대체
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+// focus-pulse 애니메이션 수정
+@keyframes focus-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+// 반응형 디자인에서 검색 정보 처리
+@media (max-width: 768px) {
+  .carousel-button {
+    width: 32px;
+    height: 32px;
+
+    &.carousel-prev {
+      left: 5px;
+    }
+
+    &.carousel-next {
+      right: 5px;
+    }
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .image-line-info {
+    .line-indicator {
+      font-size: 12px;
+      padding: 4px 12px;
+    }
+
+    .image-counter {
+      font-size: 12px;
+    }
+  }
+
+  .viewer-nav {
+    width: 40px;
+    height: 40px;
+
+    &.viewer-prev {
+      left: 10px;
+    }
+
+    &.viewer-next {
+      right: 10px;
+    }
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  .viewer-line-info {
+    .line-badge {
+      font-size: 14px;
+      padding: 6px 16px;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .carousel-indicators {
+    gap: 6px;
+  }
+
+  .indicator-dot {
+    width: 8px;
+    height: 8px;
+
+    &.active {
+      width: 20px;
+    }
+  }
+
+  .station-image {
+    max-height: 300px;
+  }
+}
+
+// 14. 유틸리티 클래스
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// 15. 프린트 스타일
+@media print {
+  .search-bar,
+  .zoom-controls,
+  .debug-controls,
+  .modal-overlay,
+  .image-viewer-overlay {
+    display: none !important;
+  }
+
+  .map-container {
+    background: white;
+  }
+
+  ::ng-deep svg text {
+    &.station-search-highlight,
+    &.current-search-result,
+    &.station-highlight {
+      fill: black !important;
+      filter: none !important;
+    }
+  }
+}
+
+// 16. 다크 모드 지원
+@media (prefers-color-scheme: dark) {
+  .carousel-button {
+    background: rgba(255, 255, 255, 0.2);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+  }
+
+  .viewer-nav {
+    background: rgba(255, 255, 255, 0.2);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+  }
+
+  .indicator-dot {
+    background: #666;
+
+    &:hover {
+      background: #888;
+    }
+  }
+}
+
+// 17. 고대비 모드
+@media (prefers-contrast: high) {
+  .search-bar,
+  .zoom-button,
+  .modal-content {
+    border: 2px solid currentColor;
+  }
+
+  .search-button,
+  .zoom-button {
+    &:focus {
+      outline: 3px solid currentColor;
+      outline-offset: 2px;
+    }
+  }
+
+  ::ng-deep svg text {
+    &.station-search-highlight {
+      outline: 2px solid $primary-color;
+      outline-offset: 2px;
+    }
+
+    &.current-search-result {
+      outline: 3px solid $secondary-color;
+      outline-offset: 3px;
+    }
+  }
+}
+
+// 18. 접근성 향상
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+// 추가 애니메이션
+@keyframes hover-pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes ring-expand {
+  0% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+// 19. 추가 검색 관련 스타일 (텍스트 가시성 보장)
+// ::ng-deep svg {
+//   // 모든 그룹 내의 텍스트가 보이도록 보장
+//   g text {
+//     pointer-events: auto !important;
+
+//     &.station-search-highlight,
+//     &.current-search-result {
+//       // z-index 효과를 위한 상대 위치
+//       position: relative;
+//       z-index: 100;
+
+//       // 텍스트 주변 공간 확보
+//       &::before {
+//         content: '';
+//         position: absolute;
+//         top: -4px;
+//         left: -4px;
+//         right: -4px;
+//         bottom: -4px;
+//         background: rgba(255, 255, 255, 0.8);
+//         border-radius: 4px;
+//         z-index: -1;
+//       }
+//     }
+//   }
+
+//   // 특정 라인 그룹의 텍스트 처리
+//   [id*="line-"] text,
+//   [class*="line-"] text {
+//     &.station-search-highlight {
+//       stroke: white;
+//       stroke-width: 3px;
+//       paint-order: stroke fill;
+//     }
+//   }
+// }

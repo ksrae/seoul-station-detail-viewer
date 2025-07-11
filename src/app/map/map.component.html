@@ -1,0 +1,237 @@
+<div class="map-container">
+  <!-- 로딩 화면 -->
+  @if (isLoading()) {
+    <div class="loading-overlay">
+      <div class="loading-content">
+        <div class="spinner"></div>
+        <p>지하철 노선도를 불러오는 중...</p>
+        <div class="progress-bar">
+          <div class="progress-fill" [style.width.%]="loadingProgress()"></div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- 검색 바 -->
+  <div class="search-bar">
+    <input
+      #searchInputElement
+      type="text"
+      [(ngModel)]="searchInput"
+      (keydown.enter)="onSearchEnter($event)"
+      placeholder="역 이름을 검색하세요"
+      class="search-input"
+    />
+    <button (click)="executeSearch()" class="search-button">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      </svg>
+    </button>
+    @if (searchQuery()) {
+      <div class="search-info-wrapper">
+        <span class="search-query-display">"{{ searchQuery() }}" 검색 결과</span>
+        @if (searchResultInfo) {
+          <span class="search-result-info">{{ searchResultInfo }}</span>
+        }
+        <button (click)="clearSearch()" class="clear-search-button" title="검색 초기화">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    }
+  </div>
+
+  <!-- 실시간 좌표 및 줌 레벨 표시 창 -->
+  <div class="debug-controls">
+    <span>X: {{ debugCenterX() }}</span>
+    <span>Y: {{ debugCenterY() }}</span>
+    <span>Zoom: {{ currentZoomLevel.toFixed(2) }}x</span>
+  </div>
+
+  <!-- 줌 컨트롤 -->
+  <div class="zoom-controls">
+    <button (click)="zoomIn()" [disabled]="!canZoomIn" class="zoom-button" title="확대">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    </button>
+    <button (click)="zoomOut()" [disabled]="!canZoomOut" class="zoom-button" title="축소">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    </button>
+    <button (click)="resetZoom()" class="zoom-button" title="전체 보기">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
+        <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
+        <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
+        <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
+      </svg>
+    </button>
+  </div>
+
+
+  <!-- SVG 맵 컨테이너 -->
+  <div #mapContainer class="svg-container"></div>
+
+  <!-- 역 정보 모달 -->
+  @if (selectedStation()) {
+    <div class="modal-overlay" (click)="closeModal()" (keydown)="handleKeyboardNavigation($event)">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <button class="modal-close" (click)="closeModal()">×</button>
+
+        <h2>{{ selectedStation()!.id }}</h2>
+
+        @if (selectedStation()!.isTransfer && selectedStation()!.lines?.length) {
+          <div class="transfer-info">
+            <span class="transfer-label">환승역</span>
+            <div class="line-badges">
+              @for (line of selectedStation()!.lines; track line.lineNumber) {
+                <span class="line-badge" [style.background-color]="getLineColor(line.lineNumber)">
+                  {{ line.line }}
+                </span>
+              }
+            </div>
+          </div>
+        }
+
+        @if (selectedStation()!.description) {
+          <p class="station-description">{{ selectedStation()!.description }}</p>
+        }
+
+        <div class="station-image-section">
+          @if (stationImages().length > 0) {
+            <div class="image-carousel">
+              <!-- 현재 호선 정보 표시 -->
+              @if (currentStationImage()) {
+                <div class="image-line-info">
+                  <span class="line-indicator" [style.background-color]="getLineColor(currentStationImage()!.lineNumber)">
+                    {{ currentStationImage()!.line }}
+                  </span>
+                  @if (stationImages().length > 1) {
+                    <span class="image-counter">{{ currentImageIndex() + 1 }} / {{ stationImages().length }}</span>
+                  }
+                </div>
+              }
+
+              <!-- 이미지 표시 영역 -->
+              <div class="carousel-container">
+                <!-- 이전 버튼 -->
+                @if (stationImages().length > 1) {
+                  <button class="carousel-button carousel-prev" (click)="previousImage()" title="이전 이미지">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                  </button>
+                }
+
+                <!-- 이미지 -->
+                @if (imageExists()) {
+                  <img
+                    [src]="stationImageUrl()"
+                    [alt]="selectedStation()!.id + ' 역 ' + currentStationImage()!.line + ' 사진'"
+                    class="station-image"
+                    (click)="openImageViewer()"
+                  />
+                } @else if (imageError()) {
+                  <div class="no-image-placeholder">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                      <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                      <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <p>{{ imageError() }}</p>
+                  </div>
+                } @else {
+                  <div class="image-loading">
+                    <div class="spinner"></div>
+                    <p>이미지 로딩중...</p>
+                  </div>
+                }
+
+                <!-- 다음 버튼 -->
+                @if (stationImages().length > 1) {
+                  <button class="carousel-button carousel-next" (click)="nextImage()" title="다음 이미지">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                  </button>
+                }
+              </div>
+
+              <!-- 이미지 인디케이터 -->
+              @if (stationImages().length > 1) {
+                <div class="carousel-indicators">
+                  @for (image of stationImages(); track $index) {
+                    <button
+                      class="indicator-dot"
+                      [class.active]="$index === currentImageIndex()"
+                      [style.background-color]="$index === currentImageIndex() ? getLineColor(image.lineNumber) : '#ccc'"
+                      (click)="goToImage($index)"
+                      [title]="image.line + ' 이미지로 이동'">
+                      <span class="visually-hidden">{{ image.line }} 이미지</span>
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="no-image-placeholder">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+              <p>이 역에 등록된 이미지가 없습니다.</p>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- 이미지 뷰어 -->
+  @if (isImageViewerVisible() && currentStationImage()) {
+    <div class="image-viewer-overlay" (click)="closeImageViewer()">
+      <div class="image-viewer-content" (click)="$event.stopPropagation()">
+        <button class="viewer-close" (click)="closeImageViewer()">×</button>
+        <!-- 호선 정보 표시 -->
+        <div class="viewer-line-info">
+          <span class="line-badge" [style.background-color]="getLineColor(currentStationImage()!.lineNumber)">
+            {{ currentStationImage()!.line }}
+          </span>
+        </div>
+        <img
+          [src]="stationImageUrl()"
+          [alt]="selectedStation()!.id + ' 역 ' + currentStationImage()!.line + ' 사진'"
+          class="viewer-image"
+        />
+
+        <!-- 뷰어에서도 네비게이션 버튼 제공 -->
+        @if (stationImages().length > 1) {
+          <button class="viewer-nav viewer-prev" (click)="previousImage()" title="이전 이미지">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <button class="viewer-nav viewer-next" (click)="nextImage()" title="다음 이미지">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- 디버그 정보 -->
+  @if (databaseLoadError()) {
+    <div class="error-message">
+      {{ databaseLoadError() }}
+    </div>
+  }
+</div>
