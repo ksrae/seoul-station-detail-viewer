@@ -101,8 +101,9 @@ export class MapComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private transformOffset = { x: 0, y: 0 };
   private isOffsetCalculated = false;
-private isDragging = false;
-private dragThreshold = 5; // 5픽셀 이상 움직이면 드래그로 간주
+  private isDragging = false;
+  private dragThreshold = 5; // 5픽셀 이상 움직이면 드래그로 간주
+
   constructor(
     private http: HttpClient,
     private renderer: Renderer2
